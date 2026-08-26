@@ -1,0 +1,12 @@
+* text=auto
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.ino text eol=lf
+*.cpp text eol=lf
+*.h text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.eprj2 binary
+*.epro2 binary
+*.webp binary
+

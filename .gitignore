@@ -1,0 +1,50 @@
+# Arduino build products and local logs
+firmware/arduino/build/
+firmware/arduino/logs/
+firmware/arduino/**/build/
+firmware/arduino/**/logs/
+firmware/arduino/backups/
+*.elf
+*.map
+*.bin
+*.hex
+*.uf2
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Local editor/OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local Arduino CLI configuration
+arduino-cli.yaml
+
+# Archives, captured packages, and generated song data
+*.zip
+*.7z
+*.rar
+*.msp
+*.mspkg
+
+# Vendored third-party Arduino libraries are installed separately.
+firmware/arduino/libraries/U8g2/
+firmware/arduino/tests/libraries/U8g2/
+firmware/arduino/tests/libraries/MiniSynthBoard/
+
+# Internal handoff/context material and locally retained references
+/AGENT.md
+/FIRMWARE_HANDOFF.md
+/LOCAL_AI_CONTEXT.md
+/START_HERE.md
+/04-next-session-handoff.md
+/06-pcb-layout-handoff.md
+/ref-NS4168-datasheet-V1.2-Apr2023.pdf
+firmware/arduino/tests/07_usb_mspkg_import_test/LOCAL_AGENT_LOOP_PROMPT.md

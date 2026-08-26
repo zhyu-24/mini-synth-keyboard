@@ -1,0 +1,37 @@
+{
+  "profile_id": "mini-synth-keyboard-v1",
+  "profile_version": 1,
+  "hardware": {
+    "mcu": "ESP32-S3-WROOM-1-N16R8",
+    "flash_bytes": 16777216,
+    "psram_bytes": 8388608,
+    "filesystem_partition": "FATFS approximately 9.9 MB",
+    "speaker": "8 ohm / 1 W nominal, small mono speaker",
+    "amplifier": "NS4168, 3.3 V, right I2S slot"
+  },
+  "current_play_firmware": {
+    "sample_rate_hz": 16000,
+    "sample_bits": 16,
+    "channels": 2,
+    "audible_channel": "right",
+    "master_peak": 18000,
+    "manual_pitch_midi": [48, 50, 52, 53, 55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83],
+    "manual_pitch_attenuation_db": [0, 0, 0, 0, 0, 0, 0, -1, -2, -3, -4, -5, -5, -6, -8, -11, -14, -14, -15, -17, -18],
+    "attack_ms": 10,
+    "release_ms": 25,
+    "octave_glide_ms": 12
+  },
+  "sequence_v1_conversion": {
+    "ticks_per_quarter": 480,
+    "maximum_polyphony": 4,
+    "preferred_playback_midi_min": 48,
+    "preferred_playback_midi_max": 85,
+    "transpose_policy": "preserve source MIDI notes; store an octave-only recommended playback transpose",
+    "teaching_key_pitch_classes": [0, 2, 4, 5, 7, 9, 11],
+    "audio_engine_status": "twelve-tone automatic sequence playback not yet implemented in firmware"
+  },
+  "audio_import_status": {
+    "enabled": false,
+    "reason": "MP3 sample rate, bitrate, decoder, buffering, and speaker-safe gain require separate physical-board validation"
+  }
+}
