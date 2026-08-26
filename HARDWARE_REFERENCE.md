@@ -1,5 +1,7 @@
 # Mini Synth Keyboard — Hardware reference for firmware work
 
+[简体中文](HARDWARE_REFERENCE.zh-CN.md)
+
 This is the concise board reference. Detailed reasoning remains in `00-design-decisions.md`, BOM details in `02-bom-footprints.md`, and physical test procedures in `07-hardware-test-guide.md`.
 
 ## Main devices

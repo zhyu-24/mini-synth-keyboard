@@ -1,5 +1,7 @@
 # Board bring-up sketches
 
+[简体中文](README.zh-CN.md)
+
 Run in this order and follow `07-hardware-test-guide.md`.
 
 ## `01_mcu_usb_test`

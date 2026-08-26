@@ -1,5 +1,7 @@
 # Mini Synth Keyboard applications
 
+[简体中文](README.zh-CN.md)
+
 ## `mini_synth_v1`
 
 Hardware-accepted playable firmware with the multi-app shell, 30-song file library, persistent Settings, global BLE game keyboard, and MUSB v1 storage management.

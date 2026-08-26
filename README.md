@@ -15,7 +15,7 @@
 - 全局 BLE HID 连接和九键游戏键盘模式；
 - 设置保存在 NVS 中，歌曲保存在独立 FFat 分区中。
 
-正式应用的详细行为见 [`firmware/arduino/apps/README.md`](firmware/arduino/apps/README.md)。
+正式应用的详细行为见 [`firmware/arduino/apps/README.zh-CN.md`](firmware/arduino/apps/README.zh-CN.md)。
 
 ## 硬件概览
 
@@ -47,6 +47,20 @@ LICENSES/                  软件、硬件和文档许可证说明
 ```
 
 构建产物、日志、Python 缓存、第三方 U8g2 副本、生成的歌曲包以及内部交接材料不会提交到仓库。
+
+## 中文文档导航
+
+- [Windows 本地开发环境配置](LOCAL_SETUP_WINDOWS.zh-CN.md)
+- [固件开发硬件速查](HARDWARE_REFERENCE.zh-CN.md)
+- [Arduino 板级抽象与构建工具](firmware/arduino/README.zh-CN.md)
+- [正式固件功能与操作说明](firmware/arduino/apps/README.zh-CN.md)
+- [分阶段板卡测试顺序](firmware/arduino/tests/README.zh-CN.md)
+- [音乐库管理器](tools/music-library/README.md)
+- [USB MSPKG 主机工具](tools/usb-import/README.md)
+- [MUSB v1 设备协议](firmware/arduino/tests/07_usb_mspkg_import_test/PROTOCOL.md)
+- [MSPKG v1 音乐包格式](tools/media-import/MSPKG_V1.zh-CN.md)
+- [立创 EDA 专业版工程说明](hardware/lceda/README.zh-CN.md)
+- [许可证范围说明](LICENSES/README.zh-CN.md)
 
 ## 构建正式固件
 
@@ -138,7 +152,7 @@ Get-FileHash .\hardware\lceda\elec_piano.eprj2 -Algorithm SHA256
 - 硬件设计：CERN-OHL-P-2.0；
 - 文档和项目自有图片：CC BY 4.0。
 
-完整范围说明见 [`LICENSES/README.md`](LICENSES/README.md)。第三方库、数据手册、工具和音乐内容保留各自权利，不因本仓库而被重新许可。
+完整范围说明见 [`LICENSES/README.zh-CN.md`](LICENSES/README.zh-CN.md)。第三方库、数据手册、工具和音乐内容保留各自权利，不因本仓库而被重新许可。
 
 ## 贡献
 

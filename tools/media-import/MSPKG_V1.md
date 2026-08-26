@@ -1,5 +1,7 @@
 # MSPKG v1 — Mini Synth Package
 
+[简体中文](MSPKG_V1.zh-CN.md)
+
 `*.mspkg` is the transport container for the nine-key ESP32-S3 device. Version 1 defines `SEQUENCE`; `AUDIO` reserves the same container but is not enabled until MP3 playback is physically validated.
 
 All integer fields are little-endian. Strings are UTF-8. CRC uses IEEE CRC-32 as implemented by Python `zlib.crc32`.

@@ -1,5 +1,7 @@
 # LCEDA Pro project
 
+[简体中文](README.zh-CN.md)
+
 ## Files
 
 - `elec_piano.eprj2` is the latest editable LCEDA Pro project database copied on 2026-08-26 from the local project last modified on 2026-08-16.
@@ -17,4 +19,3 @@ Get-FileHash .\archive\elec_piano_2026-08-08-21-36.epro2 -Algorithm SHA256
 ## Manufacturing warning
 
 This is a design source release, not a promise that every board house rule set or component substitution is safe. Review the project and generate fresh Gerber, drill, BOM, and pick-and-place outputs from the exact revision you intend to manufacture.
-

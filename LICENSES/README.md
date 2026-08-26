@@ -1,5 +1,7 @@
 # Licensing
 
+[简体中文](README.zh-CN.md)
+
 This repository uses separate licenses for software, hardware design files, and documentation:
 
 - Software in `firmware/`, `tools/`, and executable scripts is licensed under the [MIT License](../LICENSE).
@@ -7,4 +9,3 @@ This repository uses separate licenses for software, hardware design files, and 
 - Project documentation and project-owned images are licensed under [Creative Commons Attribution 4.0 International](CC-BY-4.0.txt).
 
 Third-party libraries, datasheets, fonts, tools, music, and other external material retain their respective copyrights and licenses. Their mention in this repository does not relicense them. Generated music packages and third-party song data are intentionally excluded from this repository.
-

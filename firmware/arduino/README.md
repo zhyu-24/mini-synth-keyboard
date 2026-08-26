@@ -1,5 +1,7 @@
 # Mini Synth Keyboard · Arduino board abstraction
 
+[简体中文](README.zh-CN.md)
+
 ## What this provides
 
 `libraries/MiniSynthBoard/src/MiniSynthPins.h` is the board-level GPIO definition for this custom PCB. Application sketches should include it and use semantic names instead of raw GPIO numbers:

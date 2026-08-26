@@ -1,5 +1,7 @@
 # Windows local development setup
 
+[简体中文](LOCAL_SETUP_WINDOWS.zh-CN.md)
+
 This project uses Arduino IDE for human inspection and Arduino CLI for repeatable local-AI automation.
 
 ## 1. Install the Espressif core in Arduino IDE
