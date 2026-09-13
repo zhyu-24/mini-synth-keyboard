@@ -4,7 +4,7 @@
 
 ## `mini_synth_v1`
 
-Hardware-accepted playable firmware with the multi-app shell, 30-song file library, persistent Settings, global BLE game keyboard, and MUSB v1 storage management.
+Hardware-used playable firmware with the multi-app shell, 30-song file library, persistent Settings, global BLE game keyboard, and MUSB v1 storage management. The PITCH EQ switch has also been flashed and listening-tested with the replacement full-range speaker.
 
 ### Play and audio
 
@@ -14,16 +14,17 @@ Hardware-accepted playable firmware with the multi-app shell, 30-song file libra
   - `LATCH`: release a single SW8 press to move one octave down or a single SW9 press to move one octave up, clamped to C3-C5. The latched octave survives app switches during the current boot and resets to C4 after reboot. If both buttons are used for Home/BLE, no latch step is committed.
 - Already sounding Play notes retain the confirmed 12 ms smoothstep glide when the octave changes. New attacks start directly at the selected octave.
 - Play timbre is selected only in Settings; SW8/SW9 no longer implement Play double-click timbre cycling. Song keeps its independent SW8/SW9 timbre controls.
-- Pure SINE remains on the confirmed `MASTER_PEAK=18000` and exact 21-pitch attenuation table: low C3-B3 all 0 dB; middle C4-B4 `{-1,-2,-3,-4,-5,-5,-6}` dB; high C5-B5 `{-8,-11,-14,-14,-15,-17,-18}` dB.
-- For `8BIT`, `ORGAN`, and `PIANO` only, MIDI 60-71 receives +3 dB and MIDI 72+ receives +6 dB relative to the prior calibrated curve; pitches below MIDI 60 are unchanged. This applies consistently to Play and Song. Chord normalization uses the original calibrated envelope so the requested relative boost is retained, followed by the final safety clamp.
+- `PITCH EQ` is a global pitch-dependent loudness correction switch for both Play and Song, **OFF by default**. It does not change pitch. It targets the original small speaker, whose resonance was about 950 Hz and whose strong response around roughly 800 Hz–1.2 kHz made upper notes disproportionately loud. ON progressively attenuates middle/high notes with the exact 21-pitch table and applies Song semitone interpolation. That band describes the original speaker use case, not a universal speaker cutoff.
+- With PITCH EQ ON, `8BIT`, `ORGAN`, and `PIANO` also receive the existing +3 dB at MIDI 60-71 and +6 dB at MIDI 72+; lower pitches are unchanged. Chord normalization uses the original calibrated envelope to preserve this relative boost. OFF bypasses the pitch table, octave boost, and pitch-dependent normalization weights to 1.0; chord normalization itself remains active.
+- Both switch states retain the timbre-wide gains, waveforms, envelopes, global volume, final safety clamp, and `MASTER_PEAK=18000`. Settings are snapshotted once per audio block and latched at note onset; release tails retain their gains. Play octave transitions retain the existing 12 ms smoothstep and each note's latched correction state.
 - Global volume is applied to Play and Song after mixing/normalization and before the final clamp and `MASTER_PEAK`. It ranges from 0% to 100% in 10% steps; 100% preserves the accepted output path.
 - After 100 ms of valid digital silence at startup, NS4168 is enabled and remains enabled to avoid an amplifier-enable transient on every key press. Cold start does not wait for USB Serial.
 
 ### Home, Settings, and app shell
 
 - Firmware still boots directly into Play. Holding SW8+SW9 for 1 second opens Home. C/D/E/F/G/A/B select Play/Song/Loop/Beat/Pet/Keyboard/Game, SW8 opens Settings, and SW9 resumes the last resumable app. Input is suppressed until all nine keys are released after every app transition.
-- Settings is a functional persistent page backed by a dedicated `Preferences` NVS namespace, unrelated to BLE bonds. Its compact versioned record is validated before use; absent, corrupt, or incompatible data falls back to volume 100%, octave mode HOLD, and Play sound SINE.
-- Settings controls: C/D select the previous/next row, E/F decrease/increase the selected value, and G resets that row to its default. The rows are `VOLUME`, `OCT MODE`, and `PLAY SOUND`. Holding SW8+SW9 returns Home as on every page.
+- Settings is a functional persistent page backed by a dedicated `Preferences` NVS namespace, unrelated to BLE bonds. Absent, corrupt, or incompatible records fall back to volume 100%, octave mode HOLD, Play sound SINE, and PITCH EQ OFF. The 13-byte v2 record validates the switch strictly as 0/1 and includes it in the checksum. Valid 12-byte v1 records preserve their volume, octave mode, and Play sound, adding PITCH EQ OFF; the next setting save writes v2. Loading never clears NVS, BLE bonds, or FFat.
+- Settings controls: C/D select the previous/next row, E/F decrease/increase the selected value, and G resets that row to its default. Four rows (`VOLUME`, `OCT MODE`, `PLAY SOUND`, `PITCH EQ: OFF/ON`) scroll within three visible lines, retaining the footer and BLE badge. On PITCH EQ, E sets OFF, F sets ON, and G resets to OFF. Holding SW8+SW9 returns Home as on every page.
 - Loop, Beat, Pet, and Game remain safe `COMING SOON` placeholders and publish digital silence.
 
 ### Song catalog and controls
@@ -41,6 +42,12 @@ Hardware-accepted playable firmware with the multi-app shell, 30-song file libra
 - BLE remains a global service rather than a Keyboard-owned connection. Holding SW8+SW9 for 1 second returns Home; continuing to 3 seconds opens the existing 30-second switch-device window. The firmware preserves bonds, temporarily rejects only the peer explicitly left, and keeps the `B-` / `B30..B01` / `B+` badge behavior on every page.
 - Keyboard remains the same two-byte NKRO BLE HID game keyboard: top SW1/SW2/SW3/SW8 = Q/W/E/R, bottom SW4/SW5/SW6/SW7 = A/S/D/F, SW9 = Left Alt, with Alt suppressing R, release-all on exit, reconnect all-up gating, and BLE API calls isolated to the low-priority BLE task.
 - MUSB v1 commands and payloads are unchanged. Upload still uses a hidden temporary FFat file, validates before commit, and uses backup+rename rollback. Upload/delete refresh now rescans up to 30 songs and leaves a valid selected song loaded behind the same atomic audio gate. `INIT_STORAGE` remains the only explicitly confirmed format path and affects only the FFat music partition.
+
+### PITCH EQ and speaker matching
+
+Offline tests execute the production settings functions and complete audio task with host hardware stubs. They cover v1 migration, v2 integrity/round trips, all 21 Play notes and 128 MIDI pitches in four timbres, UI scrolling, gain latching, octave glide, and output limits. With a pre-change source backup supplied, EQ ON is also compared sample-for-sample against the previous audio task. See [host test instructions](../tests/host_pitch_eq/README.md).
+
+Enable correction for the original small speaker, or another speaker with a pronounced resonance around roughly 800 Hz–1.2 kHz that makes high notes too loud. A reasonably flat full-range speaker covering the instrument range normally uses OFF. The larger replacement full-range speaker with EQ OFF has been flashed and listening-tested by the user. For an unknown speaker, compare ON/OFF at low master volume rather than relying on its marketing category. No MUSB protocol, music manager, song format, partition, or board configuration changes are required.
 
 Required libraries:
 

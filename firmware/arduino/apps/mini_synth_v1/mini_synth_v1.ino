@@ -265,10 +265,13 @@ enum class SettingRow : uint8_t {
   Volume,
   OctaveMode,
   PlaySound,
+  PitchEq,
 };
-constexpr uint8_t SETTING_ROW_COUNT = 3;
+constexpr uint8_t SETTING_ROW_COUNT = 4;
+constexpr uint8_t SETTINGS_VISIBLE_ROWS = 3;
+constexpr bool DEFAULT_PITCH_EQ_ENABLED = false;
 
-struct PersistentSettingsRecord {
+struct PersistentSettingsRecordV1 {
   uint32_t magic;
   uint8_t version;
   uint8_t volumePercent;
@@ -276,10 +279,21 @@ struct PersistentSettingsRecord {
   uint8_t playTimbre;
   uint32_t checksum;
 } __attribute__((packed));
-static_assert(sizeof(PersistentSettingsRecord) == 12,
+static_assert(sizeof(PersistentSettingsRecordV1) == 12,
+              "Unexpected v1 settings record size");
+struct PersistentSettingsRecord {
+  uint32_t magic;
+  uint8_t version;
+  uint8_t volumePercent;
+  uint8_t octaveMode;
+  uint8_t playTimbre;
+  uint8_t pitchEqEnabled;
+  uint32_t checksum;
+} __attribute__((packed));
+static_assert(sizeof(PersistentSettingsRecord) == 13,
               "Unexpected settings record size");
 constexpr uint32_t SETTINGS_MAGIC = 0x4D535332UL;  // MSS2.
-constexpr uint8_t SETTINGS_VERSION = 1;
+constexpr uint8_t SETTINGS_VERSION = 2;
 constexpr char SETTINGS_NVS_NAMESPACE[] = "msynth-set";
 constexpr char SETTINGS_NVS_KEY[] = "record";
 
@@ -2436,6 +2450,7 @@ volatile SongTimbre sharedPlayTimbre = SongTimbre::Sine;
 volatile PlayOctaveMode sharedPlayOctaveMode = PlayOctaveMode::Hold;
 volatile int8_t sharedLatchedPlayOctave = 0;
 volatile uint8_t sharedGlobalVolumePercent = DEFAULT_GLOBAL_VOLUME_PERCENT;
+volatile bool sharedPitchEqEnabled = DEFAULT_PITCH_EQ_ENABLED;
 volatile SettingRow sharedSettingRow = SettingRow::Volume;
 volatile uint32_t sharedSettingsRevision = 1;
 volatile uint32_t sharedSettingsSaveRevision = 0;
@@ -3012,6 +3027,7 @@ struct SettingsSnapshot {
   uint8_t volumePercent;
   PlayOctaveMode octaveMode;
   SongTimbre playTimbre;
+  bool pitchEqEnabled;
   int8_t latchedOctave;
   SettingRow selectedRow;
   uint32_t revision;
@@ -3023,6 +3039,7 @@ SettingsSnapshot readSettingsSnapshot() {
   snapshot.volumePercent = sharedGlobalVolumePercent;
   snapshot.octaveMode = sharedPlayOctaveMode;
   snapshot.playTimbre = sharedPlayTimbre;
+  snapshot.pitchEqEnabled = sharedPitchEqEnabled;
   snapshot.latchedOctave = sharedLatchedPlayOctave;
   snapshot.selectedRow = sharedSettingRow;
   snapshot.revision = sharedSettingsRevision;
@@ -3034,14 +3051,19 @@ SongTimbre readPlayTimbre() {
   return readSettingsSnapshot().playTimbre;
 }
 
-uint32_t settingsChecksum(const PersistentSettingsRecord &record) {
-  const uint8_t *bytes = reinterpret_cast<const uint8_t *>(&record);
+uint32_t settingsBytesChecksum(const void *data, size_t length) {
+  const uint8_t *bytes = static_cast<const uint8_t *>(data);
   uint32_t hash = 2166136261UL;
-  for (size_t i = 0; i < offsetof(PersistentSettingsRecord, checksum); ++i) {
+  for (size_t i = 0; i < length; ++i) {
     hash ^= bytes[i];
     hash *= 16777619UL;
   }
   return hash;
+}
+
+uint32_t settingsChecksum(const PersistentSettingsRecord &record) {
+  return settingsBytesChecksum(&record,
+      offsetof(PersistentSettingsRecord, checksum));
 }
 
 PersistentSettingsRecord makeSettingsRecord(const SettingsSnapshot &settings) {
@@ -3051,6 +3073,7 @@ PersistentSettingsRecord makeSettingsRecord(const SettingsSnapshot &settings) {
   record.volumePercent = settings.volumePercent;
   record.octaveMode = static_cast<uint8_t>(settings.octaveMode);
   record.playTimbre = static_cast<uint8_t>(settings.playTimbre);
+  record.pitchEqEnabled = settings.pitchEqEnabled ? 1 : 0;
   record.checksum = settingsChecksum(record);
   return record;
 }
@@ -3062,7 +3085,33 @@ bool validSettingsRecord(const PersistentSettingsRecord &record) {
          record.volumePercent % GLOBAL_VOLUME_STEP_PERCENT == 0 &&
          record.octaveMode <= static_cast<uint8_t>(PlayOctaveMode::Latch) &&
          record.playTimbre <= static_cast<uint8_t>(SongTimbre::PianoSynth) &&
+         record.pitchEqEnabled <= 1 &&
          record.checksum == settingsChecksum(record);
+}
+
+// Decode without touching NVS. A valid legacy record keeps all three settings;
+// only the new switch receives its default. Subsequent saves always write v2.
+bool decodeSettingsRecord(const void *data, size_t length,
+                          PersistentSettingsRecord &record) {
+  if (length == sizeof(record)) {
+    memcpy(&record, data, sizeof(record));
+    return validSettingsRecord(record);
+  }
+  if (length != sizeof(PersistentSettingsRecordV1)) return false;
+  PersistentSettingsRecordV1 legacy;
+  memcpy(&legacy, data, sizeof(legacy));
+  if (legacy.magic != SETTINGS_MAGIC || legacy.version != 1 ||
+      legacy.checksum != settingsBytesChecksum(&legacy,
+          offsetof(PersistentSettingsRecordV1, checksum))) return false;
+  record = {};
+  record.magic = SETTINGS_MAGIC;
+  record.version = SETTINGS_VERSION;
+  record.volumePercent = legacy.volumePercent;
+  record.octaveMode = legacy.octaveMode;
+  record.playTimbre = legacy.playTimbre;
+  record.pitchEqEnabled = DEFAULT_PITCH_EQ_ENABLED ? 1 : 0;
+  record.checksum = settingsChecksum(record);
+  return validSettingsRecord(record);
 }
 
 void loadPersistentSettings() {
@@ -3070,10 +3119,12 @@ void loadPersistentSettings() {
   Preferences preferences;
   bool valid = false;
   if (preferences.begin(SETTINGS_NVS_NAMESPACE, true)) {
-    if (preferences.getBytesLength(SETTINGS_NVS_KEY) == sizeof(record) &&
-        preferences.getBytes(SETTINGS_NVS_KEY, &record, sizeof(record)) ==
-            sizeof(record)) {
-      valid = validSettingsRecord(record);
+    uint8_t bytes[sizeof(PersistentSettingsRecord)] = {};
+    const size_t length = preferences.getBytesLength(SETTINGS_NVS_KEY);
+    if ((length == sizeof(PersistentSettingsRecordV1) ||
+         length == sizeof(PersistentSettingsRecord)) &&
+        preferences.getBytes(SETTINGS_NVS_KEY, bytes, length) == length) {
+      valid = decodeSettingsRecord(bytes, length, record);
     }
     preferences.end();
   }
@@ -3085,6 +3136,8 @@ void loadPersistentSettings() {
       : PlayOctaveMode::Hold;
   sharedPlayTimbre = valid
       ? static_cast<SongTimbre>(record.playTimbre) : SongTimbre::Sine;
+  sharedPitchEqEnabled = valid
+      ? record.pitchEqEnabled != 0 : DEFAULT_PITCH_EQ_ENABLED;
   sharedLatchedPlayOctave = 0;  // Deliberately runtime-only.
   sharedSettingsRevision = sharedSettingsRevision + 1U;
   portEXIT_CRITICAL(&stateMux);
@@ -3148,12 +3201,16 @@ void changeSelectedSetting(int8_t direction, bool resetToDefault) {
     } else if (direction > 0) {
       sharedPlayOctaveMode = PlayOctaveMode::Latch;
     }
-  } else {
+  } else if (sharedSettingRow == SettingRow::PlaySound) {
     int8_t timbre = resetToDefault ? 0
         : static_cast<int8_t>(sharedPlayTimbre) + direction;
     if (timbre < 0) timbre = 0;
     if (timbre > 3) timbre = 3;
     sharedPlayTimbre = static_cast<SongTimbre>(timbre);
+  } else if (sharedSettingRow == SettingRow::PitchEq) {
+    if (resetToDefault) sharedPitchEqEnabled = DEFAULT_PITCH_EQ_ENABLED;
+    else if (direction < 0) sharedPitchEqEnabled = false;
+    else if (direction > 0) sharedPitchEqEnabled = true;
   }
   markSettingsChanged();
   portEXIT_CRITICAL(&stateMux);
@@ -4866,11 +4923,12 @@ float smoothstep01(float value) {
 }
 
 void setPitchImmediately(uint8_t note, int8_t octaveOffset,
-                         SongTimbre timbre = SongTimbre::Sine) {
+                         SongTimbre timbre = SongTimbre::Sine,
+                         bool pitchEqEnabled = DEFAULT_PITCH_EQ_ENABLED) {
   const float phaseStep =
       static_cast<float>(phaseStepForOctave(basePhaseSteps[note], octaveOffset));
   const uint8_t midiPitch = static_cast<uint8_t>(60 + note + 12 * octaveOffset);
-  const float pitchGain = timbre == SongTimbre::Sine
+  const float pitchGain = !pitchEqEnabled ? 1.0f : timbre == SongTimbre::Sine
       ? noteGainByOctave[octaveGainIndex(octaveOffset)][note]
       : noteGainByOctave[octaveGainIndex(octaveOffset)][note] *
             nonSineOctaveCompensation(timbre, midiPitch);
@@ -4880,15 +4938,16 @@ void setPitchImmediately(uint8_t note, int8_t octaveOffset,
   currentPitchGains[note] = pitchGain;
   glideStartPitchGains[note] = pitchGain;
   glideTargetPitchGains[note] = pitchGain;
-  const float normalizationGain =
-      noteGainByOctave[octaveGainIndex(octaveOffset)][note];
+  const float normalizationGain = pitchEqEnabled
+      ? noteGainByOctave[octaveGainIndex(octaveOffset)][note] : 1.0f;
   currentNormalizationPitchGains[note] = normalizationGain;
   glideStartNormalizationPitchGains[note] = normalizationGain;
   glideTargetNormalizationPitchGains[note] = normalizationGain;
 }
 
 void startOctaveGlide(int8_t octaveOffset, uint8_t activeNoteMask,
-                      const SongTimbre *latchedTimbres) {
+                      const SongTimbre *latchedTimbres,
+                      const bool *latchedPitchEq) {
   const uint8_t gainIndex = octaveGainIndex(octaveOffset);
 
   for (uint8_t note = 0; note < NOTE_COUNT; ++note) {
@@ -4896,7 +4955,8 @@ void startOctaveGlide(int8_t octaveOffset, uint8_t activeNoteMask,
     const bool pressed =
         (activeNoteMask & static_cast<uint8_t>(1U << note)) != 0;
     if (!sounding && !pressed) {
-      setPitchImmediately(note, octaveOffset, latchedTimbres[note]);
+      setPitchImmediately(note, octaveOffset, latchedTimbres[note],
+                          latchedPitchEq[note]);
       continue;
     }
 
@@ -4906,10 +4966,11 @@ void startOctaveGlide(int8_t octaveOffset, uint8_t activeNoteMask,
     glideStartPitchGains[note] = currentPitchGains[note];
     glideStartNormalizationPitchGains[note] =
         currentNormalizationPitchGains[note];
-    glideTargetNormalizationPitchGains[note] =
-        noteGainByOctave[gainIndex][note];
+    glideTargetNormalizationPitchGains[note] = latchedPitchEq[note]
+        ? noteGainByOctave[gainIndex][note] : 1.0f;
     const uint8_t midiPitch = static_cast<uint8_t>(60 + note + 12 * octaveOffset);
-    glideTargetPitchGains[note] = latchedTimbres[note] == SongTimbre::Sine
+    glideTargetPitchGains[note] = !latchedPitchEq[note] ? 1.0f
+        : latchedTimbres[note] == SongTimbre::Sine
         ? noteGainByOctave[gainIndex][note]
         : noteGainByOctave[gainIndex][note] *
               nonSineOctaveCompensation(latchedTimbres[note], midiPitch);
@@ -5193,7 +5254,13 @@ float nonSineOctaveCompensation(SongTimbre timbre, uint8_t midiPitch) {
   return midiPitch >= 72 ? NON_SINE_C5_GAIN : NON_SINE_C4_GAIN;
 }
 
-float calibratedPitchGain(SongTimbre timbre, uint8_t midiPitch) {
+float normalizationPitchGain(uint8_t midiPitch, bool pitchEqEnabled) {
+  return pitchEqEnabled ? interpolatedSinePitchGain(midiPitch) : 1.0f;
+}
+
+float calibratedPitchGain(SongTimbre timbre, uint8_t midiPitch,
+                          bool pitchEqEnabled) {
+  if (!pitchEqEnabled) return 1.0f;
   const float sineGain = interpolatedSinePitchGain(midiPitch);
   if (timbre == SongTimbre::Sine) return sineGain;
   return sineGain * nonSineOctaveCompensation(timbre, midiPitch);
@@ -5304,6 +5371,7 @@ void audioRenderTask(void *) {
   SequenceVoice sequenceVoices[SEQUENCE_VOICE_COUNT] = {};
   uint8_t activeSongPitch = 0;
   SongTimbre latchedPlayTimbres[NOTE_COUNT] = {};
+  bool latchedPlayPitchEq[NOTE_COUNT] = {};
   float playSmoothedEightBit[NOTE_COUNT] = {};
   float playPianoEnvelopes[NOTE_COUNT] = {};
   bool playPianoAttackPhases[NOTE_COUNT] = {};
@@ -5404,7 +5472,8 @@ void audioRenderTask(void *) {
     previousSongStatus = songControl.status;
 
     if (audioApp == AppId::Play && octaveChanged) {
-      startOctaveGlide(state.octaveOffset, state.noteMask, latchedPlayTimbres);
+      startOctaveGlide(state.octaveOffset, state.noteMask, latchedPlayTimbres,
+                       latchedPlayPitchEq);
       previousOctaveOffset = state.octaveOffset;
     }
 
@@ -5414,7 +5483,10 @@ void audioRenderTask(void *) {
         // New notes begin directly at the selected octave. Only already-sounding
         // notes glide, so a normal key attack remains crisp and repeatable.
         latchedPlayTimbres[note] = playTimbre;
-        setPitchImmediately(note, state.octaveOffset, playTimbre);
+        // Latch alongside timbre: a settings change must not retune tail gains.
+        latchedPlayPitchEq[note] = audioSettings.pitchEqEnabled;
+        setPitchImmediately(note, state.octaveOffset, playTimbre,
+                             latchedPlayPitchEq[note]);
         phases[note] = 0;
         envelopes[note] = 0.0f;
         playSmoothedEightBit[note] = 0.0f;
@@ -5525,9 +5597,10 @@ void audioRenderTask(void *) {
           voice.endSample = event.startSample + event.durationSamples;
           voice.phaseStep = phaseStepForMidi(event.midiPitch);
           voice.pitchGain = calibratedPitchGain(songControl.timbre,
-                                                event.midiPitch);
+                                                event.midiPitch,
+                                                audioSettings.pitchEqEnabled);
           voice.normalizationPitchGain =
-              interpolatedSinePitchGain(event.midiPitch);
+              normalizationPitchGain(event.midiPitch, audioSettings.pitchEqEnabled);
           voice.envelope = 0.0f;
           voice.smoothedEightBit = 0.0f;
           voice.pianoEnvelope = 0.0f;
@@ -5878,6 +5951,12 @@ const char *octaveModeName(PlayOctaveMode mode) {
   return mode == PlayOctaveMode::Latch ? "LATCH" : "HOLD";
 }
 
+uint8_t settingsFirstVisibleRow(SettingRow selectedRow) {
+  const uint8_t selected = static_cast<uint8_t>(selectedRow);
+  return selected < SETTINGS_VISIBLE_ROWS ? 0
+      : selected - SETTINGS_VISIBLE_ROWS + 1;
+}
+
 void drawSettingsDisplay() {
   if (!displayReady) return;
   const SettingsSnapshot settings = readSettingsSnapshot();
@@ -5889,18 +5968,30 @@ void drawSettingsDisplay() {
 
   display.setFont(u8g2_font_5x7_tf);
   char value[24];
-  snprintf(value, sizeof(value), "%c VOLUME       %3u%%",
-           settings.selectedRow == SettingRow::Volume ? '>' : ' ',
-           static_cast<unsigned>(settings.volumePercent));
-  display.drawStr(1, 24, value);
-  snprintf(value, sizeof(value), "%c OCT MODE     %s",
-           settings.selectedRow == SettingRow::OctaveMode ? '>' : ' ',
-           octaveModeName(settings.octaveMode));
-  display.drawStr(1, 34, value);
-  snprintf(value, sizeof(value), "%c PLAY SOUND   %s",
-           settings.selectedRow == SettingRow::PlaySound ? '>' : ' ',
-           songTimbreName(settings.playTimbre));
-  display.drawStr(1, 44, value);
+  const uint8_t firstRow = settingsFirstVisibleRow(settings.selectedRow);
+  for (uint8_t visible = 0; visible < SETTINGS_VISIBLE_ROWS; ++visible) {
+    const SettingRow row = static_cast<SettingRow>(firstRow + visible);
+    const char marker = settings.selectedRow == row ? '>' : ' ';
+    switch (row) {
+      case SettingRow::Volume:
+        snprintf(value, sizeof(value), "%c VOLUME       %3u%%", marker,
+                 static_cast<unsigned>(settings.volumePercent));
+        break;
+      case SettingRow::OctaveMode:
+        snprintf(value, sizeof(value), "%c OCT MODE     %s", marker,
+                 octaveModeName(settings.octaveMode));
+        break;
+      case SettingRow::PlaySound:
+        snprintf(value, sizeof(value), "%c PLAY SOUND   %s", marker,
+                 songTimbreName(settings.playTimbre));
+        break;
+      case SettingRow::PitchEq:
+        snprintf(value, sizeof(value), "%c PITCH EQ:    %s", marker,
+                 settings.pitchEqEnabled ? "ON" : "OFF");
+        break;
+    }
+    display.drawStr(1, 24 + visible * 10, value);
+  }
   display.drawStr(1, 55, "C/D ROW  E/F CHANGE");
   display.drawStr(1, 63, "G RESET  HOLD BOTH HOME");
   display.sendBuffer();
