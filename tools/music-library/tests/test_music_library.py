@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import redirect_stdout
 import io
 import json
+import os
 from pathlib import Path
 import struct
 import subprocess
@@ -169,7 +170,19 @@ class PackageValidationTests(unittest.TestCase):
             package = root / "one.mspkg"
             package.write_bytes(make_mspkg())
             command = [sys.executable, str(ROOT / "music_library.py"), "prepare", str(package), "--output", str(root / "out")]
-            completed = subprocess.run(command, text=True, capture_output=True, check=False)
+            # Force the child and parent to agree even when the Windows console,
+            # Python UTF-8 mode, and the active system code page differ.
+            environment = os.environ.copy()
+            environment["PYTHONIOENCODING"] = "utf-8"
+            completed = subprocess.run(
+                command,
+                text=True,
+                encoding="utf-8",
+                errors="strict",
+                capture_output=True,
+                check=False,
+                env=environment,
+            )
             self.assertEqual(completed.returncode, 0, completed.stderr)
             last = completed.stdout.strip().splitlines()[-1]
             self.assertTrue(last.startswith("RESULT_JSON="))

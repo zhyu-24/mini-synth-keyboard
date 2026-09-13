@@ -18,6 +18,14 @@ if (($coreList -join "`n") -notmatch 'esp32:esp32\s+3\.3\.11') {
     throw "Required core esp32:esp32 3.3.11 is not installed. Run setup.ps1."
 }
 
+Write-Host "`n=== Required Arduino libraries ==="
+$libraryList = arduino-cli lib list 2>&1
+$libraryList | Select-String -Pattern '^U8g2\s' | Write-Host
+if ($LASTEXITCODE -ne 0) { throw "Could not list Arduino libraries." }
+if (($libraryList -join "`n") -notmatch 'U8g2\s+2\.36\.19') {
+    throw "Required library U8g2 2.36.19 is not installed. Run setup.ps1."
+}
+
 if (-not (Test-Path (Join-Path $LibraryRoot "src\MiniSynthPins.h"))) {
     throw "MiniSynthBoard library is incomplete: MiniSynthPins.h is missing."
 }

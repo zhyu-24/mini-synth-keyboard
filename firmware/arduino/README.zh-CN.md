@@ -55,13 +55,13 @@ Arduino-ESP32 将配置分成两类：
 
 ## 命令行开发工具
 
-项目固定使用 Arduino-ESP32 3.3.11。板卡设置集中在：
+项目固定使用 Arduino-ESP32 3.3.11 和 U8g2 2.36.19。板卡与依赖设置集中在：
 
 `config/board.ps1`
 
 `tools/` 中提供以下 PowerShell 脚本：
 
-- `setup.ps1`：安装固定版本的核心；
+- `setup.ps1`：安装固定版本的核心和 U8g2；
 - `check-env.ps1`：不上传固件，只检查 CLI、核心、板卡选项和本地库；
 - `build.ps1`：编译指定正式应用或测试草图；
 - `upload.ps1`：把已有构建上传到经过确认的 COM 端口；

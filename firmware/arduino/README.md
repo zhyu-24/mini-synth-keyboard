@@ -55,13 +55,13 @@ into the Arduino sketchbook's `libraries` directory, then restart Arduino IDE. A
 
 ## Command-line development package
 
-The project is pinned to Arduino-ESP32 3.3.11. Board settings are centralized in:
+The project is pinned to Arduino-ESP32 3.3.11 and U8g2 2.36.19. Board and dependency settings are centralized in:
 
 `config/board.ps1`
 
 PowerShell helpers are under `tools/`:
 
-- `setup.ps1` — install the pinned core;
+- `setup.ps1` — install the pinned core and U8g2;
 - `check-env.ps1` — check CLI, core, board options and local library without uploading;
 - `build.ps1` — compile a named test sketch;
 - `upload.ps1` — upload an existing build to a confirmed COM port;

@@ -20,9 +20,13 @@ from mspkg_usb_protocol import (  # noqa: E402
     encode_frame,
     pack_begin,
     pack_chunk,
+    pack_filename,
+    pack_init_storage_confirmation,
     sanitize_filename,
     unpack_begin,
     unpack_chunk,
+    unpack_filename,
+    validate_init_storage_confirmation,
 )
 
 
@@ -164,6 +168,19 @@ class SimulatedDevice:
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_delete_and_storage_init_codecs(self) -> None:
+        self.assertEqual(unpack_filename(pack_filename("SONG01.MSP")), "SONG01.MSP")
+        with self.assertRaises(ValueError):
+            unpack_filename(b"\x05abc")
+        confirmation = pack_init_storage_confirmation()
+        validate_init_storage_confirmation(confirmation)
+        with self.assertRaises(ValueError):
+            validate_init_storage_confirmation(b"FORMAT_FFAT")
+        self.assertEqual(Command.DELETE, 0x07)
+        self.assertEqual(Command.INIT_STORAGE, 0x08)
+        self.assertEqual(ErrorCode.DELETE_FAILED, 26)
+        self.assertEqual(ErrorCode.FORMAT_FAILED, 27)
+
     def test_frame_encode_decode_crc_and_resync(self) -> None:
         payload = b"abc\x00def"
         encoded = encode_frame(Command.CHUNK, 77, payload)

@@ -21,6 +21,7 @@ venv/
 # Local editor/OS files
 .vscode/
 .idea/
+.theia/
 .DS_Store
 Thumbs.db
 

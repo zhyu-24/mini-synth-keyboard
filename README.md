@@ -4,6 +4,8 @@
 
 > 当前仓库面向开发者和硬件制作者。制造或刷写前，请先阅读安全说明并核对所用硬件版本。
 
+> **项目状态入口（2026-09-13）：** 当前已完成、剩余功能和下一步见 [`PROJECT_STATUS.zh-CN.md`](PROJECT_STATUS.zh-CN.md)。
+
 ## 主要功能
 
 - 七个音符键和两个功能键，支持和弦、三个八度、音色与音量设置；
@@ -51,6 +53,9 @@ LICENSES/                  软件、硬件和文档许可证说明
 ## 中文文档导航
 
 - [Windows 本地开发环境配置](LOCAL_SETUP_WINDOWS.zh-CN.md)
+- [当前项目状态与剩余功能](PROJECT_STATUS.zh-CN.md)
+- [版本管理规则](VERSIONING.zh-CN.md)
+- [变更记录](CHANGELOG.md)
 - [固件开发硬件速查](HARDWARE_REFERENCE.zh-CN.md)
 - [Arduino 板级抽象与构建工具](firmware/arduino/README.zh-CN.md)
 - [正式固件功能与操作说明](firmware/arduino/apps/README.zh-CN.md)
@@ -69,7 +74,7 @@ LICENSES/                  软件、硬件和文档许可证说明
 - Windows PowerShell；
 - [`arduino-cli`](https://arduino.github.io/arduino-cli/);
 - Arduino-ESP32 `3.3.11`；
-- U8g2 Arduino 库；
+- U8g2 Arduino 库 `2.36.19`；
 - 本仓库的 `firmware/arduino/libraries/MiniSynthBoard`。
 
 在仓库根目录执行：
